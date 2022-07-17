@@ -19,4 +19,4 @@ api.add_resource(Manager_read_diary,'/ReadDiaryLog')
 api.add_resource(Get_datalist,'/Getdatalist')
 
 if __name__ == '__main__':
-    app.run()
+    app.run(port=8050,host="0.0.0.0")
