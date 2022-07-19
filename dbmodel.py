@@ -1,12 +1,12 @@
-from flask_restful import Resource
 import pymysql
-from flask_apispec import use_kwargs,marshal_with
+from flask_apispec import use_kwargs,marshal_with,doc,MethodResource
 from datetime import datetime
 from flask import jsonify,request
-
 from schemadef import *
 from statecode import *
 import re
+import random
+import pseg
 localtime=datetime.now().strftime("%Y-%m-%d %H:%M")
 def connectsql():
     db = pymysql.connect(host="ec2-34-208-156-155.us-west-2.compute.amazonaws.com",port=3306,user='erp',passwd='erp')
@@ -14,8 +14,9 @@ def connectsql():
     return db,cursor
 
 
-class Login(Resource):
+class Login(MethodResource):
     ##帳號登入
+    @doc(description="帳號登入", tags=['Login'])
     @use_kwargs(LoginRequest, location="json")      
     def post(self, **kwargs):
         login_request = LoginRequest()
@@ -47,6 +48,7 @@ class Login(Resource):
         except Exception as e:
             return {"error":str(e)}
     # 自動帶入 基本資料
+    @doc(description="自動帶入基本資料", tags=['Login'])
     @use_kwargs(auto, location="query")
     def get(self,**kwargs):
         db,cursor = connectsql()
@@ -59,8 +61,9 @@ class Login(Resource):
         db.close()
         return jsonify(success(data))
 ##編輯完日誌登打後新增專案
-class Diary_Log(Resource):
+class Diary_Log(MethodResource):
     ##編輯完日誌登打後新增專案
+    @doc(description="編輯完日誌登打後新增專案", tags=['Diary_Log'])    
     def get(self,Class,Name):
         try:
             db,cursor = connectsql()
@@ -88,6 +91,7 @@ class Diary_Log(Resource):
             return {"error":str(e)}
     ##登打時數、專案名稱、圖片網址、日誌內文
     ##sql要使用SET GLOBAL time_zone = '+8:00';
+    @doc(description="日誌燈打", tags=['Diary_Log'])
     @marshal_with(diary_log_field,code=200)
     @use_kwargs(diary_log_field, location="json")
     def post(self,Class,Name,**kwargs):
@@ -123,6 +127,7 @@ class Diary_Log(Resource):
         except Exception as e:
             return {"error":str(e)}
     ##使用者送出前修改日誌
+    @doc(description="使用者送出前修改日誌", tags=['Diary_Log'])
     @marshal_with(diary_log_field)
     @use_kwargs(diary_log_field, location="json")
     def patch(self,Class,Name,**kwargs):
@@ -154,6 +159,7 @@ class Diary_Log(Resource):
         except Exception as e:
             return {"error":str(e)}
     ##使用者送出前刪除日誌
+    @doc(description="使用者送出前刪除日誌", tags=['Diary_Log'])
     @use_kwargs(diary_log_delete, location="json")
     def delete(self,Class,Name,**kwargs):
         try:
@@ -172,8 +178,9 @@ class Diary_Log(Resource):
                 return jsonify(failure({"status":'nothing deleted'}))
         except Exception as e:
             return {"error":str(e)}
-class Message(Resource):
+class Message(MethodResource):
     ##查看問題回覆
+    @doc(description="查看問題回覆", tags=['Message'])
     @marshal_with(message_field)
     def get(self,Class,Name):
         try:
@@ -212,6 +219,8 @@ class Message(Resource):
                 return jsonify(success(result))
         except Exception as e:
             return {"error":str(e)}
+
+    @doc(description="留言系統問題", tags=['Message'])        
     @use_kwargs(message_field, location="json")
     ##留言系統問題
     def post(self,Class,Name,**kwargs):
@@ -249,7 +258,8 @@ class Message(Resource):
 
 
 # 日誌登打狀態
-class Status(Resource):
+class Status(MethodResource):
+    @doc(description="日誌登打狀態", tags=['typing Status']) 
     def get(self,Class,Name):
         try:
             db,cursor = connectsql()
@@ -267,9 +277,54 @@ class Status(Resource):
         except Exception as e:
             return {"error":str(e)}
 
+##管理端查看日誌登打率
+class typing_rate(MethodResource):
+    @doc(description="管理端查看日誌登打率", tags=['typing Status'])
+    @marshal_with(typing_rate)
+    @use_kwargs(typing_rate,location="json")
+    def post(self,**kwargs):
+        try:
+            db, cursor = connectsql()
+            Class = kwargs.get("Class")
+            Time = kwargs.get("Time")
+            ##當日登打日誌人數
+            amount = '''SELECT COUNT(Name) AS student_number FROM `personal_data`.`{}`'''.format(Class)
+            cursor.execute(amount)
+            student = cursor.fetchall()
+            student_number = student[0]["student_number"]
+            ##每日登打率
+            if Time=="day":
+                sql = '''SELECT COUNT(DISTINCT Name) AS Count_day FROM `diary_log`.`{}` WHERE date(Time)=CURRENT_DATE;'''\
+                .format(Class)
+                cursor.execute(sql)
+                typing_count = cursor.fetchall()
+                count_day = typing_count[0]["Count_day"]
+                type_rate = str(round((count_day/student_number)*100,1))+'%'
+            ##每月登打率
+            elif Time=="month":
+                sql = '''SELECT COUNT(DISTINCT Name) AS Count_month,date(Time) from `diary_log`.`{}`\
+                WHERE DATE_FORMAT(date(time), '%m') = DATE_FORMAT(CURRENT_DATE, '%m') GROUP BY date(Time);'''\
+                .format(Class)
+                cursor.execute(sql)
+                typing_count = cursor.fetchall()
+                db.commit()
+                db.close()
+                type_rate_acc = 0
+                for count in typing_count:
+                    count_month = count["Count_month"]
+                    type_rate_perday = count_month/student_number
+                    type_rate_acc = type_rate_acc + type_rate_perday
+                type_rate = str(round((type_rate_acc / len(typing_count)*100),1))+'%'
+                # print(type_rate)
+            return jsonify(success({"type_rate":type_rate}))
+        except Exception as e:
+            return {"error":str(e)}
+    # DATE_FORMAT(date(time), '%m') = DATE_FORMAT(CURRENT_DATE, '%m');
+    # SELECT COUNT(DISTINCT Name),date(Time) from dv102 GROUP BY date(Time);
 
 #  管理端帳號管理
-class Account_management(Resource):
+class Account_management(MethodResource):
+    @doc(description="管理端查看學生詳細資料", tags=['Account_management'])
     @use_kwargs(Account,location="query")
     ##依據Class,Name查看學生詳細資料
     def get(self,**kwargs):
@@ -291,6 +346,7 @@ class Account_management(Resource):
         except Exception as e:
             return {"error":str(e)}
     ##批次上傳班級學員基本資料
+    @doc(description="批次上傳班級學員基本資料", tags=['Account_management'])
     @use_kwargs(upload_personaldata,location="form")
     def post(self,**kwargs):
         try:
@@ -350,6 +406,7 @@ class Account_management(Resource):
 
     # Id 無法做修改
     ##學員詳細資料修改
+    @doc(description="學員詳細資料修改(ID無法更改)", tags=['Account_management'])
     @use_kwargs(Account,location="json")
     def patch(self,**kwargs):
         try:
@@ -369,6 +426,7 @@ class Account_management(Resource):
         except Exception as e:
             return {"error":str(e)}
     ##學員詳細資料刪除
+    @doc(description="學員詳細資料刪除", tags=['Account_management'])
     @use_kwargs(AccountDelete,location="json")
     def delete(self,**kwargs):
         try:
@@ -392,10 +450,39 @@ class Account_management(Resource):
                 return jsonify({"status":'nothing Delete'})
         except Exception as e:
             return {"error":str(e)}
-
 ##############
-class Get_datalist(Resource):
+## 帳號權限管理 新增單個學員/企業/管理者
+class Addaccount(MethodResource):
+    @doc(description="新增單個學員/企業/管理者(限已存在班級)", tags=['Account_management'])
+    @use_kwargs(Account,location="json")
+    def post(self,**kwargs):
+        try:
+            db,cursor = connectsql()
+            Type,ClassNo,ent,Name,Email,Password = kwargs.get("Type"),kwargs.get("ClassNo"),kwargs.get("ent"),kwargs.get("Name"),kwargs.get("Email"),kwargs.get("Password")
+            Class = Type + ClassNo
+            if ent == 'ent':
+                Access = "3"
+                sql = f'''
+                INSERT INTO `{ent}`(`Class`,`Access`,`Name`,`Email`,`Password`) VALUES('{ent}','{Access}','{Name}','{Email}','{Password}');
+                '''
+            else:
+                Access = "1"
+                sql = f'''
+                INSERT INTO `{Class}`(`Class`,`Access`,`Name`,`Email`,`Password`) VALUES('{Class}','{Access}','{Name}','{Email}','{Password}');
+                '''
+            result = cursor.execute(sql)
+            db.commit()
+            db.close()
+            # print(result)
+            if result == 1:
+                return jsonify({"Success":1})
+            return jsonify({"failture":0})
+        except Exception as e:
+            return {"error":str(e)}
+##############
+class Get_datalist(MethodResource):
     # 列出班別、班級及專案list
+    @doc(description="列出班別、班級及專案list", tags=['Get datalist'])
     def get(self):
         try:
             db, cursor = connectsql()
@@ -434,52 +521,10 @@ class Get_datalist(Resource):
             return jsonify(success(result))
         except Exception as e:
             return {"error":str(e)}
-    ##管理端查看日誌登打率
-    @marshal_with(typing_rate)
-    @use_kwargs(typing_rate,location="json")
-    def post(self,**kwargs):
-        try:
-            db, cursor = connectsql()
-            Class = kwargs.get("Class")
-            Time = kwargs.get("Time")
-            ##當日登打日誌人數
-            amount = '''SELECT COUNT(Name) AS student_number FROM `personal_data`.`{}`'''.format(Class)
-            cursor.execute(amount)
-            student = cursor.fetchall()
-            student_number = student[0]["student_number"]
-            ##每日登打率
-            if Time=="day":
-                sql = '''SELECT COUNT(DISTINCT Name) AS Count_day FROM `diary_log`.`{}` WHERE date(Time)=CURRENT_DATE;'''\
-                .format(Class)
-                cursor.execute(sql)
-                typing_count = cursor.fetchall()
-                count_day = typing_count[0]["Count_day"]
-                type_rate = str(round((count_day/student_number)*100,1))+'%'
-            ##每月登打率
-            elif Time=="month":
-                sql = '''SELECT COUNT(DISTINCT Name) AS Count_month,date(Time) from `diary_log`.`{}`\
-                WHERE DATE_FORMAT(date(time), '%m') = DATE_FORMAT(CURRENT_DATE, '%m') GROUP BY date(Time);'''\
-                .format(Class)
-                cursor.execute(sql)
-                typing_count = cursor.fetchall()
-                db.commit()
-                db.close()
-                type_rate_acc = 0
-                for count in typing_count:
-                    count_month = count["Count_month"]
-                    type_rate_perday = count_month/student_number
-                    type_rate_acc = type_rate_acc + type_rate_perday
-                type_rate = str(round((type_rate_acc / len(typing_count)*100),1))+'%'
-                # print(type_rate)
-            return jsonify(success({"type_rate":type_rate}))
-        except Exception as e:
-            return {"error":str(e)}
-    # DATE_FORMAT(date(time), '%m') = DATE_FORMAT(CURRENT_DATE, '%m');
-    # SELECT COUNT(DISTINCT Name),date(Time) from dv102 GROUP BY date(Time);
 
 # 管理端查看日誌
-class Manager_read_diary(Resource):
-    # @doc(description="Manager read diary list", tags=["Manager"])
+class Manager_read_diary(MethodResource):
+    @doc(description="管理端查看日誌", tags=["Diary_Log"])
     @marshal_with(ManagerReadList)
     @use_kwargs(ManagerReadList, location="json")
     def post(self, **kwargs):
@@ -527,3 +572,48 @@ class Manager_read_diary(Resource):
                 return jsonify(success(diary_list))
         except Exception as e:
             return {"error":str(e)}
+
+## 推薦職缺
+class RecommandCareer(MethodResource):
+    @doc(description="推薦職缺", tags=['reccomand Career'])
+    def get(self,Class,Name):
+        db,cursor = connectsql()
+## 取工作日誌登打內容
+        sql = f'''SELECT Content FROM `diary_log`.`{Class}` WHERE Name = '{Name}';'''
+        cursor.execute(sql)
+        content = cursor.fetchall()
+        db.commit
+        # print(content)
+
+        allContent = []
+
+        for con in content:
+            allContent.append(con["Content"])
+        allContentjoin = "".join(allContent).upper()
+        # print(allContentjoin)
+
+## 結巴切關鍵字
+        words = pseg.cut(allContentjoin)
+        con_skill = []
+        for word, flag in words:
+            if flag == 'eng':
+                con_skill.append(word)
+        random.shuffle(con_skill)
+        skill_list = list(set(con_skill))
+        result_list = []
+        for skill in skill_list:
+            # print(i)
+            sql2 = f'''
+            select `Url`,`Job`,UPPER(`Skill`) AS Skill,`Region`,`MethodResource` from `Career`.`data`\
+            WHERE Skill LIKE "%{skill}%" UNION ALL\
+            select `Url`,`Job`,UPPER(`Skill`) AS Skill,`Region`,`MethodResource` from `Career`.`cloud`\
+            WHERE Skill LIKE "%{skill}%" UNION ALL\
+            select `Url`,`Job`,UPPER(`Skill`) AS Skill,`Region`,`MethodResource` from `Career`.`frontend`\
+            WHERE Skill LIKE "%{skill}%" ORDER BY RAND() limit 2 ;
+            ''' 
+            check = cursor.execute(sql2)
+            content = cursor.fetchall()
+            for job in content:
+                # print(job) dic
+                result_list.append(job)
+        return(result_list)
