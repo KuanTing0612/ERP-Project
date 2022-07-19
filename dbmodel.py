@@ -6,7 +6,7 @@ from schemadef import *
 from statecode import *
 import re
 import random
-import pseg
+import jieba.posseg as pseg
 localtime=datetime.now().strftime("%Y-%m-%d %H:%M")
 def connectsql():
     db = pymysql.connect(host="ec2-34-208-156-155.us-west-2.compute.amazonaws.com",port=3306,user='erp',passwd='erp')
@@ -325,7 +325,7 @@ class typing_rate(MethodResource):
 #  管理端帳號管理
 class Account_management(MethodResource):
     @doc(description="管理端查看學生詳細資料", tags=['Account_management'])
-    @use_kwargs(Account,location="query")
+    @use_kwargs(details,location="query")
     ##依據Class,Name查看學生詳細資料
     def get(self,**kwargs):
         try:
@@ -452,31 +452,35 @@ class Account_management(MethodResource):
             return {"error":str(e)}
 ##############
 ## 帳號權限管理 新增單個學員/企業/管理者
-class Addaccount(MethodResource):
-    @doc(description="新增單個學員/企業/管理者(限已存在班級)", tags=['Account_management'])
-    @use_kwargs(Account,location="json")
+class Addsingleaccount(MethodResource):
+    @doc(description="新增單個學員/企業/管理者(限已存在班級,企業必須傳送 ent，值固定為'ent'，學員必須傳送 type、number)", tags=['Account_management'])
+    @use_kwargs(single_Account,location="json")
     def post(self,**kwargs):
         try:
             db,cursor = connectsql()
-            Type,ClassNo,ent,Name,Email,Password = kwargs.get("Type"),kwargs.get("ClassNo"),kwargs.get("ent"),kwargs.get("Name"),kwargs.get("Email"),kwargs.get("Password")
-            Class = Type + ClassNo
+            type,number,ent,Name,Email,Password = kwargs.get("type"),kwargs.get("number"),kwargs.get("ent"),kwargs.get("Name"),kwargs.get("Email"),kwargs.get("Password")
+            if type != None and number != None:
+                Class = type + number
+            else:
+                pass
             if ent == 'ent':
                 Access = "3"
                 sql = f'''
-                INSERT INTO `{ent}`(`Class`,`Access`,`Name`,`Email`,`Password`) VALUES('{ent}','{Access}','{Name}','{Email}','{Password}');
+                INSERT INTO `personal_data`.`{ent}`(`Class`,`Access`,`Name`,`Email`,`Password`) VALUES('{ent}','{Access}','{Name}','{Email}','{Password}');
                 '''
-            else:
+            elif ent == None:
                 Access = "1"
                 sql = f'''
-                INSERT INTO `{Class}`(`Class`,`Access`,`Name`,`Email`,`Password`) VALUES('{Class}','{Access}','{Name}','{Email}','{Password}');
+                INSERT INTO `personal_data`.`{Class}`(`Class`,`Access`,`Name`,`Email`,`Password`) VALUES('{Class}','{Access}','{Name}','{Email}','{Password}');
                 '''
+            else:
+                return {"error":"unexpected argument"}
             result = cursor.execute(sql)
             db.commit()
             db.close()
-            # print(result)
             if result == 1:
-                return jsonify({"Success":1})
-            return jsonify({"failture":0})
+                return jsonify(success({"status":"posted"}))
+            return jsonify(failure({"status":"nothing posted"}))
         except Exception as e:
             return {"error":str(e)}
 ##############
@@ -580,6 +584,7 @@ class RecommandCareer(MethodResource):
         db,cursor = connectsql()
 ## 取工作日誌登打內容
         sql = f'''SELECT Content FROM `diary_log`.`{Class}` WHERE Name = '{Name}';'''
+        print(sql)
         cursor.execute(sql)
         content = cursor.fetchall()
         db.commit
@@ -604,11 +609,11 @@ class RecommandCareer(MethodResource):
         for skill in skill_list:
             # print(i)
             sql2 = f'''
-            select `Url`,`Job`,UPPER(`Skill`) AS Skill,`Region`,`MethodResource` from `Career`.`data`\
+            select `Url`,`Job`,UPPER(`Skill`) AS Skill,`Region`,`Resource` from `Career`.`data`\
             WHERE Skill LIKE "%{skill}%" UNION ALL\
-            select `Url`,`Job`,UPPER(`Skill`) AS Skill,`Region`,`MethodResource` from `Career`.`cloud`\
+            select `Url`,`Job`,UPPER(`Skill`) AS Skill,`Region`,`Resource` from `Career`.`cloud`\
             WHERE Skill LIKE "%{skill}%" UNION ALL\
-            select `Url`,`Job`,UPPER(`Skill`) AS Skill,`Region`,`MethodResource` from `Career`.`frontend`\
+            select `Url`,`Job`,UPPER(`Skill`) AS Skill,`Region`,`Resource` from `Career`.`frontend`\
             WHERE Skill LIKE "%{skill}%" ORDER BY RAND() limit 2 ;
             ''' 
             check = cursor.execute(sql2)

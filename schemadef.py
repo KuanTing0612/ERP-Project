@@ -33,14 +33,27 @@ class LoginRequest(Schema):
     Email = fields.Str()
     Id = fields.Int()
 class auto(CommonResponse):
-    Name = fields.Str(doc="Name",required=True)
-    Class = fields.Str(doc="Class",required=True)
+    Name = fields.Str(required=True)
+    Class = fields.Str(required=True)
 
 class Account(Schema):
-	Id = fields.Int()
+	Id = fields.Int(required=True)
+	Name = fields.Str(required=True)
+	Email = fields.Str(required=True)
+	Password = fields.Str(required=True)
+	##Class=type+number
+	type = fields.Str(required=True)
+	number = fields.Str(required=True)
+class single_Account(Schema):
+	ent = fields.Str()
+	Name = fields.Str(required=True)
+	Email = fields.Str(required=True)
+	Password = fields.Str(required=True)
+	##Class=type+number
+	type = fields.Str()
+	number = fields.Str()
+class details(Schema):
 	Name = fields.Str()
-	Email = fields.Str()
-	Password = fields.Str()
 	##Class=type+number
 	type = fields.Str()
 	number = fields.Str()
