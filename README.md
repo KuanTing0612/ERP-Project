@@ -209,7 +209,7 @@ Title、Content、Access、studentclass、studentname
     "message": "success"
 }
 ```
-## /Status/Class/Name
+## /status/Class/Name
 ### get
 #### 日誌登打狀態
 - *送出*-  
