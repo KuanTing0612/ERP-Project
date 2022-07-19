@@ -9,17 +9,7 @@ from apispec.ext.marshmallow import MarshmallowPlugin
 app = Flask(__name__)
 api = Api(app)
 app.config.from_object(CONFIGS)
-CORS = "CORS(app,resources=r'/.*')"##允許跨域請求
-app.config.update({
-    'APISPEC_SPEC': APISpec(
-        title='Awesome Project',
-        version='v1',
-        plugins=[MarshmallowPlugin()],
-        openapi_version='2.0.0'
-    ),
-    'APISPEC_SWAGGER_URL': '/swagger/',  # URI to access API Doc JSON
-    'APISPEC_SWAGGER_UI_URL': '/swagger-ui/'  # URI to access UI of API Doc
-})
+# CORS = "CORS(app,resources=r'/.*')"##允許跨域請求
 docs = FlaskApiSpec(app)
 api.add_resource(Diary_Log,'/DiaryLog/<string:Class>/<string:Name>')
 docs.register(Diary_Log)
