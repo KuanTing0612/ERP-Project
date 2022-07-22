@@ -1,5 +1,6 @@
 # ERP Poject 工作日誌系統
 ###### tags: `Flask restful-API`
+代理路由:http://54.186.56.114/diary 可用postman測試
 ## /login
 ### post
 #### 登入
