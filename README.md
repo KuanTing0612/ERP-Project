@@ -36,8 +36,10 @@
 ### get
 #### 帶入基本資料
 - **學生**  
-  - *送出*:Class、Name  
-  - *回傳*:Class、Email、Id、Name  
+  - *送出*-
+  Query String:Class、Name  
+  - *回傳*-
+  Class、Email、Id、Name  
 ```json=
 {
     "data": {
@@ -532,4 +534,53 @@ type、number、project、date_from、date_to
     ......
     .....
 ]
+```
+## /Endmessage
+### get
+#### 獲得結案區所有資料
+```json=
+{
+    "data": [
+        {
+            "Class": "dv102",
+            "Content": "不能打卡",
+            "Id": 2,
+            "LeavingTime": "Sat, 09 Jul 2022 18:12:43 GMT",
+            "Name": "AAA",
+            "ReplyContent": "已請人處理",
+            "ReplyingTime": "Tue, 12 Jul 2022 12:28:09 GMT",
+            "Title": ""
+        },
+        {
+            "Class": "dv102",
+            "Content": "不能打卡",
+            "Id": 3,
+            "LeavingTime": "Sat, 09 Jul 2022 18:13:50 GMT",
+            "Name": "AAA",
+            "ReplyContent": "已請人處理",
+            "ReplyingTime": "Tue, 12 Jul 2022 12:28:09 GMT",
+            "Title": ""
+        },...
+        .....
+    ],
+    "datatime": "2022-07-24T08:06:53.875272",
+    "message": "success",
+    "statuscode": 200
+}
+```
+### post
+#### 結案功能，將原系統回復區預結案資料放入結案區
+- *送出*-  
+Class、Name、Id
+- *回傳*-  
+{"status":'Message ended'}
+```json=
+{
+    "data": {
+        "status": "Message ended"
+    },
+    "datatime": "2022-07-24T08:13:47.024257",
+    "message": "success",
+    "statuscode": 200
+}
 ```
