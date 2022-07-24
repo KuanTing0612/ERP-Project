@@ -36,7 +36,7 @@
 ### get
 #### 帶入基本資料
 - **學生**  
-  - *送出*-
+  - *送出*-  
   Query String:Class、Name  
   - *回傳*-
   Class、Email、Id、Name  
